@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+set -e
+
+tests_path="$1/buildpack_tests"
+
+if [ -e "$tests_path" ]; then
+  chmod +x "$tests_path"
+
+  echo "-----> Running Multipack buildpack tests..."
+  "$tests_path" "$1" "$2"
+  echo "-----> Multipack buildpack tests completed successfully"
+fi

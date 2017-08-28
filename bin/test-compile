@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+TESTPACK=true "$(dirname ${0:-})/compile" "$1" "$2" "$3"

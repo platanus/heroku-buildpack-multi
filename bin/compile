@@ -31,13 +31,16 @@ for BUILDPACK in $(cat $1/.buildpacks); do
     fi
 
     # we'll get errors later if these are needed and don't exist
-    chmod -f +x $dir/bin/{detect,compile,release} || true
+    chmod -f +x $dir/bin/{detect,compile,release,test,test-compile} || true
 
     framework=$($dir/bin/detect $1)
 
     if [ $? == 0 ]; then
       echo "=====> Detected Framework: $framework"
-      $dir/bin/compile $1 $2 $3
+
+      [ -n "$TESTPACK" ] && [ -x $dir/bin/test-compile ] && compile="test-compile" || compile="compile"
+
+      $dir/bin/$compile $1 $2 $3
 
       if [ $? != 0 ]; then
         exit 1
@@ -48,8 +51,35 @@ for BUILDPACK in $(cat $1/.buildpacks); do
         source $dir/export
       fi
 
-      if [ -x $dir/bin/release ]; then
-        $dir/bin/release $1 > $1/last_pack_release.out
+      if [ ! -n "$TESTPACK" ]; then
+        if [ -x $dir/bin/release ]; then
+          $dir/bin/release $1 > $1/last_pack_release.out
+        fi
+      else
+        if [ -e $dir/bin/test ]; then
+          if [ ! -e $1/buildpack_tests ]; then
+						cat <<- EOF > $1/buildpack_tests
+						#!/usr/bin/env bash
+
+						set -e
+
+						EOF
+          fi
+
+          cat <<- EOF >> $1/buildpack_tests
+					echo "-----> Running $framework buildpack tests..."
+					$dir/bin/test \$1 \$2
+
+					if [ \$? == 0 ]; then
+						echo "-----> $framework buildpack tests completed successfully"
+					else
+						echo "-----> $framework buildpack tests failed with exit status \$?"
+					fi
+
+					EOF
+        else
+          echo "-----> The $framework buildpack does not run tests. Skipping."
+        fi
       fi
     else
       echo "Couldn't detect any framework for this buildpack. Exiting."
@@ -58,6 +88,8 @@ for BUILDPACK in $(cat $1/.buildpacks); do
   fi
 done
 
-if [ -e $1/last_pack_release.out ]; then
-  echo "Using release configuration from last framework ($framework)."
+if [ ! -n "$TESTPACK" ]; then
+  if [ -e $1/last_pack_release.out ]; then
+    echo "Using release configuration from last framework ($framework)."
+  fi
 fi
