@@ -4,7 +4,12 @@ set -e
 
 unset GIT_DIR
 
-for BUILDPACK in $(cat $1/.buildpacks); do
+buildpacks=$(cat $1/.buildpacks)
+if [ -n "$TESTPACK" ] && [ -f $1/.buildpacks.test ]; then
+  buildpacks=$(echo $(cat $1/.buildpacks.test) | cat - $1/.buildpacks)
+fi
+
+for BUILDPACK in $buildpacks; do
   dir=$(mktemp -t buildpackXXXXX)
   rm -rf $dir
 
